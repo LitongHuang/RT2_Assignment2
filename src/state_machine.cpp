@@ -1,6 +1,16 @@
-/** \
+/** 
+* 
+*  \file state_machine.cpp
 *  \brief This file implements the finite state machine behaviour
-
+*
+*  \author Litong Huang
+*  \version 1.0
+*  \date 29/07/2021
+*  \details
+*   
+*  Subscribes to: <BR>
+*	 None
+*
 *  Publishes to: <BR>
 *	 /reach
      /time
@@ -16,14 +26,14 @@
 *
 *  Description: <BR>
 *    This node is a server for the user interface, it receives what the user
-* 	 writes and it acts depending on it. If the client ask for the random 
-* 	 position behaviour it calls the server /random_position and it waits 
-*  	 for it to be finished, it also checks if the client requests the behaviour
-* 	 to stop and in that case it cancels the previous goal and waits for the
-* 	 next command. In the mean time it also sends information to the user_interface
-* 	 node, it publishes a topic when a goal has been reached (True) or cancelled
+* 	 writes, and it acts depending on it. If the client ask for the random 
+* 	 position behaviour it calls the server '/random_position' and it waits 
+*  	 for it to be finished. It also checks if the client requests the behaviour
+* 	 to stop. In that case, it cancels the previous goal and waits for the
+* 	 next command. In the mean time, it also sends information to the user_interface
+* 	 node. It publishes a topic when a goal has been reached (True) or cancelled
 * 	 (False) so that the user_interface can keep track of the reached and cancelled
-* 	 goals. Also whenevera goal is reached it publishes on the topic /time the
+* 	 goals. Also whenevera goal is reached, it publishes on the topic '/time' the
 * 	 time in seconds between the request of the goal and the completion of it.
 */
 
@@ -43,8 +53,14 @@ bool not_moving = true;	/* used to know wheather robot is already moving towards
 std_msgs::Bool reached;	/* Message to state wheather the goal was completed or cancelled   */
 
 /**
+ * \brief: It receives the commands from the 'user_interface' node
+ * \param req: the command received from the client
+ * \param res: not set
+ * 
+ * \return: true
+ * 
  * This function sets the global variable start to true if the command 
- * received is "start" or it sets it to false  if the command is different
+ * received is "start" or it sets it to false if the command is different.
  */
 bool user_interface(rt2_ass2::Command::Request &req, rt2_ass2::Command::Response &res)
 	{
@@ -62,16 +78,20 @@ bool user_interface(rt2_ass2::Command::Request &req, rt2_ass2::Command::Response
 }
 
 /**
+ * \brief: The main function
+ * 
+ * \return: 0
+ * 
  * This function initializes the ros node, the server, the clients, the publishers.
- * Then if ros is running it checks the global variable start. If start 
- * is true it is also checked if the robot is already moving towards a goal 
- * with the global variable notgoing. If the robot is not already moving
- * a new goal is set, if on the other hand the robot was already going it 
- * is checked if the goal is reached, in this case information are published
- * on the topics /time and /reach. If the global variable start is false 
- * I check if the robot is already moving, if that is the case I cancel 
- * the goal and publish information on the /reach topic. If the robot is 
- * still and the start variable is false the program does nothing.
+ * Then, if ros is running, it checks the global variable 'start'. If start 
+ * is true, it also checks if the robot is already moving towards a goal 
+ * with the global variable 'not_moving'. If the robot is not already moving,
+ * a new goal is set, if on the other hand the robot was already going, it 
+   checks if the goal is reached. In this case, information is published
+ * on the topics '/time' and '/reach'. If the global variable 'start' is false, 
+ * check if the robot is already moving. If that is the case, I cancel 
+ * the goal and publish information on the '/reach' topic. If the robot is 
+ * still (not moving) and the 'start' variable is false, the program does nothing and nothing will happen.
  */
 int main(int argc, char **argv)
 {
