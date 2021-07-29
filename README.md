@@ -4,4 +4,5 @@
 
 Litong Huang (5058374)
 
-
+Use the following html link to access the Doxygen documentation:
+file:///root/rt2_ass2/src/docs/html/index.html
