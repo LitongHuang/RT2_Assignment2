@@ -1,7 +1,7 @@
 var indexSectionsWithContent =
 {
   0: "cdfgmnprsu",
-  1: "gps",
+  1: "gpsu",
   2: "cdfgmnru",
   3: "r"
 };
