@@ -1,41 +1,3 @@
-/** 
-* 
-*  \file state_machine.cpp
-*  \brief This file implements the finite state machine behaviour
-*
-*  \author Litong Huang
-*  \version 1.0
-*  \date 29/07/2021
-*  \details
-*   
-*  Subscribes to: <BR>
-*	 None
-*
-*  Publishes to: <BR>
-*	 /reach
-     /time
-*
-*  Services: <BR>
-*    /user_interface
-* 
-*  Client: <BR>
-	 /position_server
-*
-*  Action Client: <BR>
-*    /go_to_point
-*
-*  Description: <BR>
-*    This node is a server for the user interface, it receives what the user
-* 	 writes, and it acts depending on it. If the client ask for the random 
-* 	 position behaviour it calls the server '/random_position' and it waits 
-*  	 for it to be finished. It also checks if the client requests the behaviour
-* 	 to stop. In that case, it cancels the previous goal and waits for the
-* 	 next command. In the mean time, it also sends information to the user_interface
-* 	 node. It publishes a topic when a goal has been reached (True) or cancelled
-* 	 (False) so that the user_interface can keep track of the reached and cancelled
-* 	 goals. Also whenevera goal is reached, it publishes on the topic '/time' the
-* 	 time in seconds between the request of the goal and the completion of it.
-*/
 
 #include "ros/ros.h"
 #include "rt2_ass2/Command.h"
@@ -52,16 +14,7 @@ bool start = false;		/* needed to know if the user asked to stop or not */
 bool not_moving = true;	/* used to know wheather robot is already moving towards a goal or not*/
 std_msgs::Bool reached;	/* Message to state wheather the goal was completed or cancelled   */
 
-/**
- * \brief: It receives the commands from the 'user_interface' node
- * \param req: the command received from the client
- * \param res: not set
- * 
- * \return: true
- * 
- * This function sets the global variable start to true if the command 
- * received is "start" or it sets it to false if the command is different.
- */
+
 bool user_interface(rt2_ass2::Command::Request &req, rt2_ass2::Command::Response &res)
 	{
 		// if the request command is start start is set to true
