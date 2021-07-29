@@ -1,4 +1,26 @@
-#! /usr/bin/env python -tt
+#! /usr/bin/env python
+
+## 
+#  \brief This file implements the behaviour that allows the robot to reach a goal.
+#  Subscribes to: <BR>
+#	 /odom
+#    /vel
+#
+#  Publishes to: <BR>
+#	 /cmd_vel 
+#
+#  Action Services: <BR>
+#    /go_to_point
+#
+#  Description: <BR>
+#    This node allows the robot to reach a position with a given orientation.
+#	 Firstly it orients the robot in the direction of the goal and moves towards it.
+#	 Once the robot has reached the correct x and y coordinates it rotates to reach
+#	 the correct orientation. The velocities, both angular and linear are set by
+#	 the node user_interface and are received on the topic /vel. If the goal
+# 	 is set cancelled by the client of the action server then the velocities are
+#	 all set to zero and the action server is set preempted.  
+
 
 import rospy
 from geometry_msgs.msg import Twist, Point, Pose
@@ -7,7 +29,8 @@ from tf import transformations
 import math
 import actionlib
 import actionlib.msg
-import rt2_ass1.msg
+import rt2_ass2.msg
+from std_msgs.msg import String, Float64
 
 # robot state variables
 position_ = Point()
@@ -29,12 +52,28 @@ kp_d = 0.2
 ub_a = 0.6
 lb_a = -0.5
 ub_d = 0.6
+Vel=Twist()
 
 #action server
 act_s=None
 
+##	
+#	This function saves the data received by the subscriber on the topic /vel
+#	in a global variable of type Twist, Vel, this variable will be used when
+#	there is the need to set a new velocity.
+def clbk_vel(msg):
+    global Vel
+    Vel.linear.x=msg.linear.x
+    Vel.angular.z=msg.angular.z
+
+##
+#	This function saves the data received by the subscriber on the topic /odom
+#	in the global variable position for the information about the current position
+#	of the robot. It then changes the format of the orientation from quaternions angles
+#	to euler angles; it is the extracted the third elemen of the vector and it is saved
+#	on the global variable yaw_
 def clbk_odom(msg):
-	#This is called when new data are available on /odom
+    #This is called when new data are available on /odom
     global position_
     global pose_
     global yaw_
@@ -51,44 +90,64 @@ def clbk_odom(msg):
     euler = transformations.euler_from_quaternion(quaternion)
     yaw_ = euler[2]
 
-
+##
+#	This function receives the new state and assigns its value to the global 
+#	variable states_. Then a message is printed to know which one is the
+#	new state.
 def change_state(state):
-	#Changes the state to a new one
+    #Changes the state to a new one
     global state_
     state_ = state
     print ('State changed to [%s]' % state_)
 
-
+##
+#	\brief This function normalizes angles
+#	\param angle: the angle I want to normalize
+#	\return : angle, the normalized angle
+# 	
+#	This function normalizes the angle received as input, it doesn't change 
+#	the sign but it reduces the magnitude to less than one full circle
 def normalize_angle(angle):
-	#This makes calculations on angles
+    #This makes calculations on angles
     if(math.fabs(angle) > math.pi):
         angle = angle - (2 * math.pi * angle) / (math.fabs(angle))
     return angle
 
+##
+#	This function calculates the desired orientation to reach the x,y point
+#	and set the angular velocity to reach it. If the orientation error is 
+#	less than a given threshold then the state is changed to the behaviour
+#	go straight.
 def fix_yaw(des_pos):
-	#This orients the robot in direction of the goal
-    global yaw_, pub, yaw_precision_2_, state_
+    #This orients the robot in direction of the goal
+    global yaw_, pub, yaw_precision_2_, state_,Vel
     des_yaw = math.atan2(desired_position_.y - position_.y, desired_position_.x - position_.x)
     err_yaw = normalize_angle(des_yaw - yaw_)
     rospy.loginfo(err_yaw)
     
     twist_msg = Twist()
     if math.fabs(err_yaw) > yaw_precision_2_:
-        twist_msg.angular.z = kp_a*err_yaw
+        twist_msg.angular.z = Vel.angular.z
         if twist_msg.angular.z > ub_a:
-            twist_msg.angular.z = ub_a
+            twist_msg.angular.z = Vel.angular.z
         elif twist_msg.angular.z < lb_a:
-            twist_msg.angular.z = lb_a
+            twist_msg.angular.z = Vel.angular.z
     pub_.publish(twist_msg)
     # state change conditions
     if math.fabs(err_yaw) <= yaw_precision_2_:
         print ('Yaw error: [%s]' % err_yaw)
         change_state(1)
 
-
+##
+#	This function calculates the desired orientation to reach the x,y point
+#	and the distance between the goal both linear and angular. It then sets
+#	the linear velocity. It also set an angular velocity proportional to the
+#	error to slightly correct the direction of the line when needed. If the
+#	distance between the goal is less than a given threshold the state is changed
+#	to the fix final orientation behaviour.
 def go_straight_ahead(des_pos):
-	#This makes the robot go in a straight line towards the goal
-    global yaw_, pub, yaw_precision_, state_
+    #This makes the robot go in a straight line towards the goal
+    global yaw_, pub, yaw_precision_, state_,Vel
     des_yaw = math.atan2(desired_position_.y - position_.y, desired_position_.x - position_.x)
     err_yaw = des_yaw - yaw_
     err_pos = math.sqrt(pow(desired_position_.y - position_.y, 2) + pow(desired_position_.x - position_.x, 2))
@@ -97,11 +156,11 @@ def go_straight_ahead(des_pos):
 
     if err_pos > dist_precision_:
         twist_msg = Twist()
-        twist_msg.linear.x = 0.3
+        twist_msg.linear.x = Vel.linear.x
         if twist_msg.linear.x > ub_d:
-            twist_msg.linear.x = ub_d
+            twist_msg.linear.x = Vel.linear.x
 
-        twist_msg.angular.z = kp_a*err_yaw
+        twist_msg.angular.z = Vel.angular.z*err_yaw
         pub_.publish(twist_msg)
     else: # state change conditions
         print ('Position error: [%s]' % err_pos)
@@ -112,41 +171,56 @@ def go_straight_ahead(des_pos):
         print ('Yaw error: [%s]' % err_yaw)
         change_state(0)
 
+##
+#	This function calculates the error between the current orientation and the 
+#	desired one. It then sets the angular velocity to obtain the correct orientation.
+#	If the error is less than a given threshold then the state is changed to done.
 def fix_final_yaw(des_yaw):
-	# It orients the robot in the final desired orientation 
+    global Vel
+    # It orients the robot in the final desired orientation 
     err_yaw = normalize_angle(des_yaw - yaw_)
     rospy.loginfo(err_yaw)
     twist_msg = Twist()
     if math.fabs(err_yaw) > yaw_precision_2_:
-        twist_msg.angular.z = kp_a*err_yaw
+        twist_msg.angular.z = Vel.angular.z
         if twist_msg.angular.z > ub_a:
-            twist_msg.angular.z = ub_a
+            twist_msg.angular.z = Vel.angular.z
         elif twist_msg.angular.z < lb_a:
-            twist_msg.angular.z = lb_a
+            twist_msg.angular.z = Vel.angular.z
     pub_.publish(twist_msg)
     # state change conditions
     if math.fabs(err_yaw) <= yaw_precision_2_:
         #print ('Yaw error: [%s]' % err_yaw)
         change_state(3)
-        
+     
+## 	
+#	This function puts to zero all the velocities, angular and linear, and sets
+#	the goal as succeeded.  
 def done():
-	#I put every velocity to zero before setting the goal to completed
+    #I put every velocity to zero before setting the goal to completed
     twist_msg = Twist()
     twist_msg.linear.x = 0
     twist_msg.angular.z = 0
     pub_.publish(twist_msg)
     success = True
     act_s.set_succeeded()
-    
+
+##
+#	This function is called when a request to the server is made. It sets 
+#	all the global variables needed, then it enteres a while loop. In the while
+#	loop it always check if the goal is preempted and if that is the case it
+#	sets all the velocities to zero and it set the goal as preempted. If 
+#	the action server is not preempted it checks which is the state and it 
+#	calls the corresponding function.     
 def go_to_point(goal):
-	#Implements the logic to go to the goal
+    #Implements the logic to go to the goal
     global state_, desired_position_, act_s, success
     desired_position_.x = goal.target_pose.pose.position.x
     desired_position_.y = goal.target_pose.pose.position.y
     des_yaw = goal.target_pose.pose.position.z
     change_state(0)
     while True:
-		# if the action is preempted
+        # if the action is preempted
         if act_s.is_preempt_requested():
             rospy.loginfo('Goal was preempted')
             # I set the velocity to zero
@@ -173,6 +247,11 @@ def go_to_point(goal):
             break
     return True
 
+##
+#	This function is called when the program is first requested to run. It
+#	initializes all the publishers, subscribers, services and then waits for
+#	a request for the action server that should come from the user_interface
+#	node.
 def main():
     global pub_, active_, act_s
     #I initialize the goal
@@ -181,8 +260,9 @@ def main():
     pub_ = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     #I initialize the subscriber on odometry
     sub_odom = rospy.Subscriber('/odom', Odometry, clbk_odom)
+    sub_linVel = rospy.Subscriber('/vel', Twist, clbk_vel)
     #I initialize the action server
-    act_s = actionlib.SimpleActionServer('/go_to_point', rt2_assignment1.msg.PlanningAction, go_to_point, auto_start=False)
+    act_s = actionlib.SimpleActionServer('/go_to_point', rt2_ass2.msg.go_to_pointAction, go_to_point, auto_start=False)
     act_s.start()
     rospy.spin()
 
