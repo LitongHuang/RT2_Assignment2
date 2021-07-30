@@ -4,7 +4,7 @@
 *  \brief This file implements a position service
 *
 *  \author Litong Huang
-*  \version 1.0
+*  \version 0.1
 *  \date 29/07/2021
 *  \details
 *   
